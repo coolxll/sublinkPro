@@ -3,8 +3,8 @@
 # 多阶段构建：前端 -> 后端 -> 运行时镜像
 # ============================================
 
-# 1. 构建前端
-FROM node:24-alpine AS frontend-builder
+# 1. 构建前端（在宿主机平台原生执行，产物为平台无关的静态资源）
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
 WORKDIR /frontend
 COPY webs ./webs
 
@@ -15,8 +15,10 @@ RUN corepack enable
 RUN cd webs && yarn install && yarn run build
 
 
-# 2. 构建后端
-FROM golang:1.26.4 AS backend-builder
+# 2. 构建后端（在宿主机原生利用 Go 交叉编译，秒级输出目标架构二进制）
+FROM --platform=$BUILDPLATFORM golang:1.26.4 AS backend-builder
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -25,7 +27,7 @@ COPY . .
 # 把前端构建产物复制到 static 目录
 COPY --from=frontend-builder /frontend/webs/dist ./static
 
-RUN CGO_ENABLED=0 go build -tags=prod -ldflags="-s -w" -o sublinkPro
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -tags=prod -ldflags="-s -w" -o sublinkPro
 
 
 # 3. 运行镜像
