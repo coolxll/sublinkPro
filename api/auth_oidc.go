@@ -138,6 +138,7 @@ func OIDCCallback(c *gin.Context) {
 		EmailVerified bool   `json:"email_verified"`
 		Name          string `json:"name"`
 		Sub           string `json:"sub"`
+		PreferredName string `json:"preferred_username"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		utils.Error("解析 ID 令牌声明失败: %v", err)
@@ -146,9 +147,20 @@ func OIDCCallback(c *gin.Context) {
 	}
 
 	loginEmail := strings.ToLower(strings.TrimSpace(claims.Email))
+	if loginEmail == "" && strings.Contains(claims.PreferredName, "@") {
+		loginEmail = strings.ToLower(strings.TrimSpace(claims.PreferredName))
+	}
 	if loginEmail == "" {
-		utils.Warn("OIDC 返回的用户未包含有效 Email")
-		utils.FailWithMsg(c, "OIDC 账号未提供邮箱信息")
+		if userInfo, uErr := provider.UserInfo(ctx, oauth2.StaticTokenSource(oauth2Token)); uErr == nil {
+			loginEmail = strings.ToLower(strings.TrimSpace(userInfo.Email))
+		}
+	}
+	if loginEmail == "" && claims.Sub != "" {
+		loginEmail = claims.Sub
+	}
+	if loginEmail == "" {
+		utils.Warn("OIDC 返回的用户未包含有效身份信息")
+		utils.FailWithMsg(c, "OIDC 账号未提供有效用户身份信息")
 		return
 	}
 
