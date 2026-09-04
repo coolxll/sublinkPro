@@ -311,6 +311,23 @@ export function AuthProvider({ children }) {
   // 初始化 - 检查 token 并获取用户信息
   useEffect(() => {
     const initAuth = async () => {
+      // 检查 URL 中是否有来自 OIDC 回调的 access_token
+      try {
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const hashParams = new URLSearchParams(hash.replace(/^#\/?/, ''));
+        const searchParams = new URLSearchParams(search);
+        const ssoToken = hashParams.get('access_token') || searchParams.get('access_token');
+        if (ssoToken) {
+          const cleanToken = ssoToken.startsWith('Bearer ') ? ssoToken : `Bearer ${ssoToken}`;
+          localStorage.setItem('accessToken', cleanToken);
+          // 清除 URL 中的 Token 参数
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } catch (e) {
+        console.error('解析 OIDC access_token 失败:', e);
+      }
+
       const token = localStorage.getItem('accessToken');
       if (token) {
         try {

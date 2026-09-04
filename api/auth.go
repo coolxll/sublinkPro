@@ -35,6 +35,7 @@ func GetToken(user *models.User) (string, error) {
 func GetCaptcha(c *gin.Context) {
 	captchaCfg := config.GetCaptchaConfig()
 
+	oidcCfg := config.GetOIDCConfig()
 	response := gin.H{
 		"mode":             captchaCfg.Mode,           // 实际使用的模式
 		"configuredMode":   captchaCfg.ConfiguredMode, // 用户配置的模式
@@ -42,6 +43,8 @@ func GetCaptcha(c *gin.Context) {
 		"captchaKey":       "",
 		"captchaBase64":    "",
 		"turnstileSiteKey": "",
+		"oidcEnabled":      oidcCfg.Enabled,
+		"oidcAutoLogin":    oidcCfg.AutoLogin,
 	}
 
 	switch captchaCfg.Mode {

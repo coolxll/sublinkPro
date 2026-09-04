@@ -64,6 +64,10 @@ export default function AuthLogin() {
   const [turnstileSiteKey, setTurnstileSiteKey] = useState('');
   const [captchaDegraded, setCaptchaDegraded] = useState(false);
 
+  // OIDC 单点登录状态
+  const [oidcEnabled, setOidcEnabled] = useState(false);
+  const [oidcAutoLogin, setOidcAutoLogin] = useState(false);
+
   // Turnstile 弹窗状态
   const [turnstileDialogOpen, setTurnstileDialogOpen] = useState(false);
   // 获取验证码配置
@@ -71,6 +75,16 @@ export default function AuthLogin() {
     try {
       const response = await getCaptcha();
       const data = response.data;
+
+      // 设置 OIDC 状态
+      if (data.oidcEnabled) {
+        setOidcEnabled(true);
+        if (data.oidcAutoLogin) {
+          setOidcAutoLogin(true);
+          window.location.href = '/api/v1/auth/oidc/login';
+          return;
+        }
+      }
 
       // 设置验证码模式
       setCaptchaMode(data.mode || CAPTCHA_MODE.TRADITIONAL);
@@ -519,6 +533,38 @@ export default function AuthLogin() {
           </Button>
         </AnimateButton>
       </Box>
+
+      {oidcEnabled && (
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ my: 1.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              {t('auth.login.or', '或通过 SSO 登录')}
+            </Typography>
+          </Divider>
+          <AnimateButton>
+            <Button
+              color="primary"
+              fullWidth
+              size="large"
+              variant="outlined"
+              onClick={() => {
+                window.location.href = '/api/v1/auth/oidc/login';
+              }}
+              sx={{
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.primary',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: 'action.hover'
+                }
+              }}
+            >
+              Sign in with Google / SSO
+            </Button>
+          </AnimateButton>
+        </Box>
+      )}
     </form>
   );
 

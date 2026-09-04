@@ -63,9 +63,21 @@ type AppConfig struct {
 	TurnstileSiteKey   string   `yaml:"turnstile_site_key"`   // Cloudflare Turnstile Site Key
 	TurnstileSecretKey string   `yaml:"turnstile_secret_key"` // Cloudflare Turnstile Secret Key
 	TurnstileProxyLink string   `yaml:"turnstile_proxy_link"` // Turnstile 验证代理链接（mihomo 格式）
-	WebBasePath        string   `yaml:"web_base_path"`        // 前端基础路径（用于隐藏站点入口）
-	TrustedProxies     []string `yaml:"trusted_proxies"`      // 可信反向代理列表（支持 IP/CIDR）
-	MFAResetSecret     string   `yaml:"-"`
+	WebBasePath        string     `yaml:"web_base_path"`        // 前端基础路径（用于隐藏站点入口）
+	TrustedProxies     []string   `yaml:"trusted_proxies"`      // 可信反向代理列表（支持 IP/CIDR）
+	MFAResetSecret     string     `yaml:"-"`
+	OIDC               OIDCConfig `yaml:"oidc"`                 // OIDC 单点登录配置
+}
+
+// OIDCConfig OIDC 单点登录配置
+type OIDCConfig struct {
+	Enabled       bool     `yaml:"enabled"`        // 是否启用 OIDC
+	Issuer        string   `yaml:"issuer"`         // OIDC Provider Issuer (如 https://accounts.google.com)
+	ClientID      string   `yaml:"client_id"`      // 客户端 ID
+	ClientSecret  string   `yaml:"client_secret"`  // 客户端密钥
+	RedirectURI   string   `yaml:"redirect_uri"`   // 回调地址
+	AllowedEmails []string `yaml:"allowed_emails"` // 允许登录的邮箱白名单
+	AutoLogin     bool     `yaml:"auto_login"`     // 未登录访问登录页时是否自动重定向至 OIDC
 }
 
 // CommandLineConfig 命令行配置（仅存储用户指定的值）
@@ -323,6 +335,35 @@ func GetMFAResetSecret() string {
 	return ""
 }
 
+// GetOIDCConfig 获取 OIDC 单点登录配置
+func GetOIDCConfig() OIDCConfig {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	if globalConfig != nil {
+		return globalConfig.OIDC
+	}
+	var oidc OIDCConfig
+	if oidcEnabled := os.Getenv(envPrefix + "OIDC_ENABLED"); oidcEnabled != "" {
+		oidc.Enabled = strings.EqualFold(oidcEnabled, "true") || oidcEnabled == "1"
+	}
+	oidc.Issuer = strings.TrimSpace(os.Getenv(envPrefix + "OIDC_ISSUER"))
+	oidc.ClientID = strings.TrimSpace(os.Getenv(envPrefix + "OIDC_CLIENT_ID"))
+	oidc.ClientSecret = strings.TrimSpace(os.Getenv(envPrefix + "OIDC_CLIENT_SECRET"))
+	oidc.RedirectURI = strings.TrimSpace(os.Getenv(envPrefix + "OIDC_REDIRECT_URI"))
+	if emails := os.Getenv(envPrefix + "OIDC_ALLOWED_EMAILS"); emails != "" {
+		for _, e := range strings.Split(emails, ",") {
+			if trimmed := strings.TrimSpace(e); trimmed != "" {
+				oidc.AllowedEmails = append(oidc.AllowedEmails, strings.ToLower(trimmed))
+			}
+		}
+	}
+	if autoLogin := os.Getenv(envPrefix + "OIDC_AUTO_LOGIN"); autoLogin != "" {
+		oidc.AutoLogin = strings.EqualFold(autoLogin, "true") || autoLogin == "1"
+	}
+	return oidc
+}
+
 // CaptchaConfig 验证码配置信息
 type CaptchaConfig struct {
 	Mode             int    // 当前验证码模式（经过降级处理后的实际模式）
@@ -535,6 +576,10 @@ func loadFromFileInternal(cfg *AppConfig, configPath string) {
 	if fileCfg.TrustedProxies != nil {
 		cfg.TrustedProxies = normalizeTrustedProxies(fileCfg.TrustedProxies)
 	}
+	// OIDC 配置
+	if fileCfg.OIDC.Issuer != "" || fileCfg.OIDC.ClientID != "" || fileCfg.OIDC.Enabled {
+		cfg.OIDC = fileCfg.OIDC
+	}
 }
 
 // loadFromEnvInternal 从环境变量加载（内部使用，不获取锁）
@@ -576,8 +621,8 @@ func loadFromEnvInternal(cfg *AppConfig) {
 	if logLevel := os.Getenv(envPrefix + "LOG_LEVEL"); logLevel != "" {
 		cfg.LogLevel = logLevel
 	}
-	if geoipPath := os.Getenv(envPrefix + "GEOIP_PATH"); geoipPath != "" {
-		cfg.GeoIPPath = geoipPath
+	if geoIPPath := os.Getenv(envPrefix + "GEOIP_PATH"); geoIPPath != "" {
+		cfg.GeoIPPath = geoIPPath
 	}
 	// 敏感配置
 	if secret := os.Getenv(envPrefix + "JWT_SECRET"); secret != "" {
@@ -610,6 +655,35 @@ func loadFromEnvInternal(cfg *AppConfig) {
 	}
 	if trustedProxies, ok := os.LookupEnv(envPrefix + "TRUSTED_PROXIES"); ok {
 		cfg.TrustedProxies = normalizeTrustedProxies(strings.Split(trustedProxies, ","))
+	}
+	// OIDC 配置
+	if oidcEnabled := os.Getenv(envPrefix + "OIDC_ENABLED"); oidcEnabled != "" {
+		cfg.OIDC.Enabled = strings.EqualFold(oidcEnabled, "true") || oidcEnabled == "1"
+	}
+	if issuer := os.Getenv(envPrefix + "OIDC_ISSUER"); issuer != "" {
+		cfg.OIDC.Issuer = strings.TrimSpace(issuer)
+	}
+	if clientID := os.Getenv(envPrefix + "OIDC_CLIENT_ID"); clientID != "" {
+		cfg.OIDC.ClientID = strings.TrimSpace(clientID)
+	}
+	if clientSecret := os.Getenv(envPrefix + "OIDC_CLIENT_SECRET"); clientSecret != "" {
+		cfg.OIDC.ClientSecret = strings.TrimSpace(clientSecret)
+	}
+	if redirectURI := os.Getenv(envPrefix + "OIDC_REDIRECT_URI"); redirectURI != "" {
+		cfg.OIDC.RedirectURI = strings.TrimSpace(redirectURI)
+	}
+	if allowedEmails := os.Getenv(envPrefix + "OIDC_ALLOWED_EMAILS"); allowedEmails != "" {
+		emails := strings.Split(allowedEmails, ",")
+		var cleaned []string
+		for _, e := range emails {
+			if trimmed := strings.TrimSpace(e); trimmed != "" {
+				cleaned = append(cleaned, strings.ToLower(trimmed))
+			}
+		}
+		cfg.OIDC.AllowedEmails = cleaned
+	}
+	if autoLogin := os.Getenv(envPrefix + "OIDC_AUTO_LOGIN"); autoLogin != "" {
+		cfg.OIDC.AutoLogin = strings.EqualFold(autoLogin, "true") || autoLogin == "1"
 	}
 }
 

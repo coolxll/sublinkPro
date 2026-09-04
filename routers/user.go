@@ -16,6 +16,8 @@ func User(r *gin.Engine) {
 		authGroup.POST("/mfa/reset", middlewares.DemoModeRestrict, api.ResetTOTP)
 		authGroup.DELETE("/logout", api.UserOut)
 		authGroup.GET("/captcha", api.GetCaptcha)
+		authGroup.GET("/oidc/login", api.OIDCLogin)
+		authGroup.GET("/oidc/callback", api.OIDCCallback)
 	}
 	userGroup := r.Group("/api/v1/users")
 	userGroup.Use(middlewares.AuthToken)
