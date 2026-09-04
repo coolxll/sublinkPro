@@ -3,6 +3,7 @@ module sublink
 go 1.27.3
 
 require (
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/dlclark/regexp2/v2 v2.12.0
 	github.com/dop251/goja v0.0.0-20260607120635-348e6bea910d
 	github.com/gin-gonic/gin v1.12.0
@@ -16,6 +17,7 @@ require (
 	github.com/oschwald/geoip2-golang/v2 v2.5.0
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/crypto v0.58.0
+	golang.org/x/oauth2 v0.38.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.3
@@ -49,6 +51,7 @@ require (
 	github.com/gaukas/godicttls v0.0.4 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.3 // indirect
