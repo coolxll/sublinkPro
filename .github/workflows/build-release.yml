@@ -1,11 +1,11 @@
 name: Build and Release Multi-Platform
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-  paths-ignore:
+    paths-ignore:
       # 文档文件（不包括 skill-sublinkpro，它会被嵌入到二进制文件中）
       - '*.md'
       - 'docs/**'
