@@ -116,6 +116,10 @@ The `Dockerfile` implements the two-stage build automatically:
 docker build -t sublinkpro:latest .
 ```
 
+Pass `--build-arg VERSION=<version>` to embed a version string; without it
+(`VERSION` is empty in the repository) `/api/v1/version` reports an empty
+version. The GHCR workflow sets this automatically from the tag or commit SHA.
+
 ### Docker Build Process (Internal)
 
 The Dockerfile follows this flow:

@@ -19,6 +19,8 @@ RUN cd webs && yarn install && yarn run build
 FROM --platform=$BUILDPLATFORM golang:1.27.3 AS backend-builder
 ARG TARGETOS
 ARG TARGETARCH
+# 版本号写入 VERSION（被 main.go go:embed 嵌入），否则 /api/v1/version 返回空
+ARG VERSION=""
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
@@ -26,6 +28,8 @@ COPY . .
 
 # 把前端构建产物复制到 static 目录
 COPY --from=frontend-builder /frontend/webs/dist ./static
+
+RUN if [ -n "$VERSION" ]; then printf '%s' "$VERSION" > VERSION; fi
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build -tags=prod -ldflags="-s -w" -o sublinkPro
 

@@ -116,6 +116,9 @@ CGO_ENABLED=0 go build -tags=prod -ldflags="-s -w" -o sublinkPro
 docker build -t sublinkpro:latest .
 ```
 
+可通过 `--build-arg VERSION=<版本号>` 写入版本号；不传时（仓库中的 `VERSION`
+为空）`/api/v1/version` 会返回空版本号。GHCR 工作流会自动使用 tag 或提交短 SHA。
+
 ### Docker 构建流程（内部）
 
 Dockerfile 遵循以下流程：
